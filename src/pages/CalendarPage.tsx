@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../lib/auth'
-import { getAppointments, updateAppointment, deleteAppointment, getClients, getServices, getEmployees, createAppointment } from '../lib/supabase'
+import { getAppointments, updateAppointment, deleteAppointment, getClients, getServices, getEmployees, createAppointment, sendConfirmation } from '../lib/supabase'
 import { format, startOfWeek, addDays, isSameDay } from 'date-fns'
 import { pt } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react'
@@ -39,11 +39,12 @@ export default function CalendarPage() {
     const [h, m] = form.start_time.split(':').map(Number)
     const endMin = h * 60 + m + duration
     const end_time = `${String(Math.floor(endMin / 60)).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}`
-    await createAppointment({
+    const { data: created } = await createAppointment({
       client_id: form.client_id, service_id: form.service_id, employee_id: form.employee_id || null,
       date: form.date, start_time: form.start_time, end_time, notes: form.notes,
       company_id: companyId, price: form.price ? +form.price : svc?.price, status: 'scheduled',
     })
+    if (created?.id) sendConfirmation(created.id)
     setShowModal(false)
     const { data } = await getAppointments(companyId!, format(week, 'yyyy-MM-dd'), format(addDays(week, 6), 'yyyy-MM-dd'))
     setApts(data ?? [])

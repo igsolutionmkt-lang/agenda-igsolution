@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../lib/auth'
 import { getServices, upsertService, deleteService } from '../lib/supabase'
 import { Plus, Trash2, X, Clock } from 'lucide-react'
+import ImageUpload from '../components/ui/image-upload'
 
 interface Service { id?: string; name: string; description?: string; duration: number; price: number; is_active: boolean; image_url?: string }
 
@@ -73,6 +74,7 @@ export default function ServicesPage() {
               <button onClick={() => setModal(false)}><X size={20} /></button>
             </div>
             <form onSubmit={handleSave} className="space-y-3">
+              <ImageUpload label="Foto do serviço" value={form.image_url} folder="services" shape="wide" onChange={url => setForm(f => ({ ...f, image_url: url }))} />
               <input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Nome do serviço *" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
               <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Descrição" rows={2} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
               <div className="grid grid-cols-2 gap-3">

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../lib/auth'
 import { getCompany, updateCompany } from '../lib/supabase'
+import ImageUpload from '../components/ui/image-upload'
 
 interface Company { id: string; name: string; slug: string; phone?: string; email?: string; address?: string; primary_color?: string; logo_url?: string; plan?: string }
 
@@ -16,7 +17,7 @@ export default function SettingsPage() {
     e.preventDefault()
     if (!company || !companyId) return
     setSaving(true)
-    await updateCompany(companyId, { name: company.name, phone: company.phone, email: company.email, address: company.address, primary_color: company.primary_color })
+    await updateCompany(companyId, { name: company.name, phone: company.phone, email: company.email, address: company.address, primary_color: company.primary_color, logo_url: company.logo_url })
     setSaving(false); setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
@@ -63,7 +64,7 @@ export default function SettingsPage() {
             <input type="color" value={company.primary_color ?? '#7c3aed'} onChange={e => setCompany(c => c ? { ...c, primary_color: e.target.value } : c)} className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer" />
             <span className="text-sm text-gray-600">{company.primary_color ?? '#7c3aed'}</span>
           </div>
-          {company.logo_url && <img src={company.logo_url} alt="Logo" className="h-12 object-contain" />}
+          <ImageUpload label="Logótipo" value={company.logo_url} folder="logos" shape="square" onChange={url => setCompany(c => c ? { ...c, logo_url: url } : c)} />
         </div>
 
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">

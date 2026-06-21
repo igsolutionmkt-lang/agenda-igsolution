@@ -86,6 +86,15 @@ export async function createAppointment(data: Record<string, unknown>) {
   return supabase.from('agenda_appointments').insert(data).select().single()
 }
 
+// Envia email de confirmação (best-effort — não bloqueia o fluxo se falhar)
+export async function sendConfirmation(appointmentId: string) {
+  try {
+    await supabase.functions.invoke('email-confirm', { body: { appointment_id: appointmentId } })
+  } catch (e) {
+    console.warn('email-confirm falhou (best-effort):', e)
+  }
+}
+
 export async function updateAppointment(id: string, updates: Record<string, unknown>) {
   return supabase.from('agenda_appointments').update(updates).eq('id', id)
 }
@@ -152,6 +161,14 @@ export async function getLoyaltyRewards(companyId: string) {
   return supabase.from('agenda_loyalty_rewards').select('*').eq('company_id', companyId)
 }
 
+export async function upsertLoyaltyReward(data: Record<string, unknown>) {
+  return supabase.from('agenda_loyalty_rewards').upsert(data).select().single()
+}
+
+export async function deleteLoyaltyReward(id: string) {
+  return supabase.from('agenda_loyalty_rewards').delete().eq('id', id)
+}
+
 // ─── Admin ───────────────────────────────────────────────────────────────────
 
 export async function getAdminOverview() {
@@ -194,6 +211,14 @@ export async function sendWinbackEmail(clientName: string, clientEmail: string, 
       html: `<p>Olá ${clientName}, há algum tempo que não nos visita. Gostaríamos de vê-lo de volta!</p>`,
     },
   })
+}
+
+// ─── AI Assistant ─────────────────────────────────────────────────────────────
+
+export async function askAI(prompt: string, history: { role: string; content: string }[], context?: string): Promise<string> {
+  const { data, error } = await supabase.functions.invoke('agenda-ai', { body: { prompt, history, context } })
+  if (error) return 'Desculpe, ocorreu um erro ao contactar o assistente. Tente novamente.'
+  return (data as { text?: string })?.text ?? 'Sem resposta.'
 }
 
 // ─── Public Booking ───────────────────────────────────────────────────────────

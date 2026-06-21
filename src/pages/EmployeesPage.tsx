@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../lib/auth'
 import { getEmployees, upsertEmployee, deleteEmployee } from '../lib/supabase'
 import { Plus, Trash2, Edit2, X } from 'lucide-react'
+import ImageUpload from '../components/ui/image-upload'
 
 interface Employee { id?: string; name: string; email?: string; phone?: string; role?: string; is_active: boolean; avatar_url?: string }
 
@@ -67,6 +68,7 @@ export default function EmployeesPage() {
               <button onClick={() => setModal(false)}><X size={20} /></button>
             </div>
             <form onSubmit={handleSave} className="space-y-3">
+              <ImageUpload label="Foto" value={form.avatar_url} folder="avatars" shape="circle" onChange={url => setForm(f => ({ ...f, avatar_url: url }))} />
               <input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Nome *" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
               <input value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} placeholder="Cargo / especialidade" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
               <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="Email" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />

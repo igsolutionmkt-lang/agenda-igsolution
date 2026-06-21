@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Bot, Send } from 'lucide-react'
+import { askAI } from '../lib/supabase'
 
 interface Msg { role: 'user' | 'assistant'; content: string }
 
@@ -19,15 +20,14 @@ export default function AIAssistant() {
 
   async function handleSend(text?: string) {
     const msg = text ?? input
-    if (!msg.trim()) return
+    if (!msg.trim() || loading) return
+    const history = messages.map(m => ({ role: m.role, content: m.content }))
     setMessages(prev => [...prev, { role: 'user', content: msg }])
     setInput('')
     setLoading(true)
-    // Simulated response (replace with actual Supabase edge function call)
-    setTimeout(() => {
-      setMessages(prev => [...prev, { role: 'assistant', content: `Boa pergunta sobre "${msg}". Para melhorar os resultados do seu negócio, recomendo focar na retenção de clientes existentes — custa 5x menos do que adquirir novos. Analise os clientes "em risco" no Dashboard e envie campanhas de winback personalizadas.` }])
-      setLoading(false)
-    }, 1000)
+    const answer = await askAI(msg, history)
+    setMessages(prev => [...prev, { role: 'assistant', content: answer }])
+    setLoading(false)
   }
 
   return (
