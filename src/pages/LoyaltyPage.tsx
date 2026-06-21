@@ -3,7 +3,7 @@ import { useAuth } from '../lib/auth'
 import { getLoyaltyRewards } from '../lib/supabase'
 import { Gift } from 'lucide-react'
 
-interface Reward { id: string; name: string; description?: string; points_required: number; is_active: boolean }
+interface Reward { id: string; name: string; description?: string; points_cost: number; is_active: boolean }
 
 export default function LoyaltyPage() {
   const { companyId } = useAuth()
@@ -21,7 +21,7 @@ export default function LoyaltyPage() {
               <div className="p-2 bg-amber-100 rounded-lg"><Gift size={16} className="text-amber-600" /></div>
               <div>
                 <p className="font-medium text-gray-900">{r.name}</p>
-                <p className="text-xs text-amber-600">{r.points_required} pontos</p>
+                <p className="text-xs text-amber-600">{r.points_cost} pontos</p>
               </div>
             </div>
             {r.description && <p className="text-sm text-gray-500">{r.description}</p>}

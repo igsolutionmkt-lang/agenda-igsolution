@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { getAdminOverview } from '../../lib/supabase'
 import { Building2, Users, Calendar, TrendingUp } from 'lucide-react'
 
-interface Row { company_id: string; company_name: string; total_appointments: number; total_clients: number; total_revenue: number; plan: string }
+interface Row { id: string; name: string; appointments_total: number; clients_count: number; revenue_total: number; plan: string }
 
 export default function AdminDashboard() {
   const [rows, setRows] = useState<Row[]>([])
@@ -11,9 +11,9 @@ export default function AdminDashboard() {
 
   const totals = rows.reduce((acc, r) => ({
     companies: acc.companies + 1,
-    appointments: acc.appointments + (r.total_appointments ?? 0),
-    clients: acc.clients + (r.total_clients ?? 0),
-    revenue: acc.revenue + (r.total_revenue ?? 0),
+    appointments: acc.appointments + (r.appointments_total ?? 0),
+    clients: acc.clients + (r.clients_count ?? 0),
+    revenue: acc.revenue + (r.revenue_total ?? 0),
   }), { companies: 0, appointments: 0, clients: 0, revenue: 0 })
 
   return (
@@ -40,12 +40,12 @@ export default function AdminDashboard() {
           </thead>
           <tbody className="divide-y divide-gray-50">
             {rows.map(r => (
-              <tr key={r.company_id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 font-medium text-gray-900">{r.company_name}</td>
+              <tr key={r.id} className="hover:bg-gray-50">
+                <td className="px-4 py-3 font-medium text-gray-900">{r.name}</td>
                 <td className="px-4 py-3"><span className="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full capitalize">{r.plan}</span></td>
-                <td className="px-4 py-3 text-gray-500">{r.total_appointments ?? 0}</td>
-                <td className="px-4 py-3 text-gray-500">{r.total_clients ?? 0}</td>
-                <td className="px-4 py-3 text-gray-500">€{(r.total_revenue ?? 0).toFixed(0)}</td>
+                <td className="px-4 py-3 text-gray-500">{r.appointments_total ?? 0}</td>
+                <td className="px-4 py-3 text-gray-500">{r.clients_count ?? 0}</td>
+                <td className="px-4 py-3 text-gray-500">€{(r.revenue_total ?? 0).toFixed(0)}</td>
               </tr>
             ))}
           </tbody>

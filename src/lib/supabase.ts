@@ -42,12 +42,12 @@ export async function getDashboardStats(companyId: string) {
 
   const [todayApts, monthApts, clients, revenue] = await Promise.all([
     supabase.from('agenda_appointments').select('id', { count: 'exact' })
-      .eq('company_id', companyId).gte('scheduled_at', today + 'T00:00:00').lte('scheduled_at', today + 'T23:59:59'),
+      .eq('company_id', companyId).eq('date', today),
     supabase.from('agenda_appointments').select('id', { count: 'exact' })
-      .eq('company_id', companyId).gte('scheduled_at', monthStart),
+      .eq('company_id', companyId).gte('date', monthStart),
     supabase.from('agenda_clients').select('id', { count: 'exact' }).eq('company_id', companyId),
     supabase.from('agenda_appointments').select('price').eq('company_id', companyId)
-      .eq('status', 'completed').gte('scheduled_at', monthStart),
+      .eq('status', 'completed').gte('date', monthStart),
   ])
 
   const totalRevenue = (revenue.data ?? []).reduce((s: number, r: { price: number }) => s + (r.price ?? 0), 0)
@@ -62,10 +62,10 @@ export async function getDashboardStats(companyId: string) {
 
 export async function getRevenueByMonth(companyId: string) {
   const { data } = await supabase.from('agenda_appointments')
-    .select('scheduled_at, price')
+    .select('date, price')
     .eq('company_id', companyId)
     .eq('status', 'completed')
-    .gte('scheduled_at', new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000).toISOString())
+    .gte('date', new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
   return data ?? []
 }
 
@@ -75,9 +75,10 @@ export async function getAppointments(companyId: string, from?: string, to?: str
   let q = supabase.from('agenda_appointments')
     .select('*, agenda_clients(name,phone), agenda_services(name,duration,price), agenda_employees(name)')
     .eq('company_id', companyId)
-    .order('scheduled_at', { ascending: true })
-  if (from) q = q.gte('scheduled_at', from)
-  if (to) q = q.lte('scheduled_at', to)
+    .order('date', { ascending: true })
+    .order('start_time', { ascending: true })
+  if (from) q = q.gte('date', from)
+  if (to) q = q.lte('date', to)
   return q
 }
 
@@ -154,7 +155,7 @@ export async function getLoyaltyRewards(companyId: string) {
 // ─── Admin ───────────────────────────────────────────────────────────────────
 
 export async function getAdminOverview() {
-  return supabase.from('agenda_admin_overview').select('*').order('total_appointments', { ascending: false })
+  return supabase.from('agenda_admin_overview').select('*').order('appointments_total', { ascending: false })
 }
 
 export async function getAdminCompanies() {

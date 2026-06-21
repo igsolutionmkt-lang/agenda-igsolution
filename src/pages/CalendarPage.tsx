@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../lib/auth'
 import { getAppointments, updateAppointment, deleteAppointment, getClients, getServices, getEmployees, createAppointment } from '../lib/supabase'
-import { format, startOfWeek, addDays, isSameDay, parseISO } from 'date-fns'
+import { format, startOfWeek, addDays, isSameDay } from 'date-fns'
 import { pt } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react'
 
-interface Apt { id: string; scheduled_at: string; status: string; price?: number; notes?: string; agenda_clients?: { name: string }; agenda_services?: { name: string; duration: number }; agenda_employees?: { name: string } }
+interface Apt { id: string; date: string; start_time: string; status: string; price?: number; notes?: string; agenda_clients?: { name: string }; agenda_services?: { name: string; duration: number }; agenda_employees?: { name: string } }
 interface Client { id: string; name: string }
 interface Service { id: string; name: string; duration: number; price: number }
 interface Employee { id: string; name: string }
@@ -18,14 +18,14 @@ export default function CalendarPage() {
   const [services, setServices] = useState<Service[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
   const [showModal, setShowModal] = useState(false)
-  const [form, setForm] = useState({ client_id: '', service_id: '', employee_id: '', scheduled_at: '', notes: '', price: '' })
+  const [form, setForm] = useState({ client_id: '', service_id: '', employee_id: '', date: '', start_time: '', notes: '', price: '' })
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(week, i))
 
   useEffect(() => {
     if (!companyId) return
-    const from = week.toISOString()
-    const to = addDays(week, 6).toISOString()
+    const from = format(week, 'yyyy-MM-dd')
+    const to = format(addDays(week, 6), 'yyyy-MM-dd')
     getAppointments(companyId, from, to).then(({ data }) => setApts(data ?? []))
     getClients(companyId).then(({ data }) => setClients(data ?? []))
     getServices(companyId).then(({ data }) => setServices(data ?? []))
@@ -35,9 +35,17 @@ export default function CalendarPage() {
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     const svc = services.find(s => s.id === form.service_id)
-    await createAppointment({ ...form, company_id: companyId, price: form.price ? +form.price : svc?.price, status: 'scheduled' })
+    const duration = svc?.duration ?? 30
+    const [h, m] = form.start_time.split(':').map(Number)
+    const endMin = h * 60 + m + duration
+    const end_time = `${String(Math.floor(endMin / 60)).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}`
+    await createAppointment({
+      client_id: form.client_id, service_id: form.service_id, employee_id: form.employee_id || null,
+      date: form.date, start_time: form.start_time, end_time, notes: form.notes,
+      company_id: companyId, price: form.price ? +form.price : svc?.price, status: 'scheduled',
+    })
     setShowModal(false)
-    const { data } = await getAppointments(companyId!, week.toISOString(), addDays(week, 6).toISOString())
+    const { data } = await getAppointments(companyId!, format(week, 'yyyy-MM-dd'), format(addDays(week, 6), 'yyyy-MM-dd'))
     setApts(data ?? [])
   }
 
@@ -76,7 +84,7 @@ export default function CalendarPage() {
 
       <div className="grid grid-cols-7 gap-2">
         {days.map(day => {
-          const dayApts = apts.filter(a => isSameDay(parseISO(a.scheduled_at), day))
+          const dayApts = apts.filter(a => isSameDay(new Date(a.date + 'T00:00:00'), day))
           const isToday = isSameDay(day, new Date())
           return (
             <div key={day.toISOString()} className="bg-white rounded-xl border border-gray-100 shadow-sm min-h-32">
@@ -89,7 +97,7 @@ export default function CalendarPage() {
                   <div key={a.id} className={`rounded p-1.5 text-xs ${statusColor[a.status] ?? 'bg-gray-100'} group relative`}>
                     <p className="font-medium truncate">{a.agenda_clients?.name}</p>
                     <p className="truncate opacity-75">{a.agenda_services?.name}</p>
-                    <p className="text-[10px] opacity-60">{format(parseISO(a.scheduled_at), 'HH:mm')}</p>
+                    <p className="text-[10px] opacity-60">{a.start_time?.slice(0, 5)}</p>
                     <div className="hidden group-hover:flex gap-1 mt-1">
                       {a.status === 'scheduled' && (
                         <button onClick={() => handleStatus(a.id, 'completed')} className="text-[10px] bg-green-600 text-white px-1 rounded">✓</button>
@@ -124,7 +132,10 @@ export default function CalendarPage() {
                 <option value="">Funcionário (opcional)</option>
                 {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
               </select>
-              <input type="datetime-local" required value={form.scheduled_at} onChange={e => setForm(f => ({ ...f, scheduled_at: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+              <div className="grid grid-cols-2 gap-2">
+                <input type="date" required value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+                <input type="time" required value={form.start_time} onChange={e => setForm(f => ({ ...f, start_time: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+              </div>
               <input type="number" placeholder="Preço (€)" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
               <textarea placeholder="Notas" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" rows={2} />
               <button type="submit" className="w-full bg-violet-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-violet-700">Criar Agendamento</button>

@@ -11,8 +11,8 @@ export default function ReportsPage() {
     if (!companyId) return
     getRevenueByMonth(companyId).then(raw => {
       const map: Record<string, { revenue: number; count: number }> = {}
-      raw.forEach((r: { scheduled_at: string; price: number }) => {
-        const m = r.scheduled_at.slice(0, 7)
+      raw.forEach((r: { date: string; price: number }) => {
+        const m = r.date.slice(0, 7)
         if (!map[m]) map[m] = { revenue: 0, count: 0 }
         map[m].revenue += r.price ?? 0
         map[m].count += 1

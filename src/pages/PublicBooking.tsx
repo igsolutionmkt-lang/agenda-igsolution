@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { getCompanyBySlug, getPublicServices, getPublicEmployees, createAppointment, upsertClient } from '../lib/supabase'
 import { Calendar, Clock, User, Check } from 'lucide-react'
 
-interface Company { id: string; name: string; logo_url?: string; brand_color?: string; slug: string }
+interface Company { id: string; name: string; logo_url?: string; primary_color?: string; slug: string }
 interface Service { id: string; name: string; duration: number; price: number; image_url?: string; description?: string }
 interface Employee { id: string; name: string; avatar_url?: string }
 
@@ -31,15 +31,17 @@ export default function PublicBooking() {
     })
   }, [slug])
 
-  const color = company?.brand_color ?? '#7c3aed'
+  const color = company?.primary_color ?? '#7c3aed'
 
   async function handleBook() {
     if (!company || !sel.service || !sel.date || !sel.time || !info.name) return
     setLoading(true); setError('')
     try {
-      const scheduled_at = `${sel.date}T${sel.time}:00`
+      const [h, m] = sel.time.split(':').map(Number)
+      const endMin = h * 60 + m + sel.service.duration
+      const end_time = `${String(Math.floor(endMin / 60)).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}`
       const { data: client } = await upsertClient({ name: info.name, email: info.email, phone: info.phone, company_id: company.id })
-      await createAppointment({ company_id: company.id, client_id: client?.id, service_id: sel.service.id, employee_id: sel.employee?.id, scheduled_at, price: sel.service.price, status: 'scheduled' })
+      await createAppointment({ company_id: company.id, client_id: client?.id, service_id: sel.service.id, employee_id: sel.employee?.id ?? null, date: sel.date, start_time: sel.time, end_time, price: sel.service.price, status: 'scheduled' })
       setStep('done')
     } catch { setError('Erro ao criar agendamento. Tente novamente.') }
     setLoading(false)

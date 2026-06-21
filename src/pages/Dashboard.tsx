@@ -19,8 +19,8 @@ export default function Dashboard() {
     getGrowthStats(companyId).then(setGrowth)
     getRevenueByMonth(companyId).then(raw => {
       const map: Record<string, number> = {}
-      raw.forEach((r: { scheduled_at: string; price: number }) => {
-        const m = r.scheduled_at.slice(0, 7)
+      raw.forEach((r: { date: string; price: number }) => {
+        const m = r.date.slice(0, 7)
         map[m] = (map[m] ?? 0) + (r.price ?? 0)
       })
       setChartData(Object.entries(map).map(([month, revenue]) => ({ month: month.slice(5), revenue })))
