@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { getCompanyBySlug, getPublicServices, getPublicEmployees, createAppointment, upsertClient, sendConfirmation } from '../lib/supabase'
+import { getCompanyBySlug, getPublicServices, getPublicEmployees, createAppointment, upsertClient, sendConfirmation, getBookedSlots } from '../lib/supabase'
+import { generateSlots, unionSlots, type WorkingHours } from '../lib/slots'
 import { Calendar, Clock, User, Check } from 'lucide-react'
 
 interface Company { id: string; name: string; logo_url?: string; primary_color?: string; slug: string }
 interface Service { id: string; name: string; duration: number; price: number; image_url?: string; description?: string }
-interface Employee { id: string; name: string; avatar_url?: string }
+interface Employee { id: string; name: string; avatar_url?: string; working_hours?: WorkingHours }
 
 type Step = 'service' | 'employee' | 'datetime' | 'info' | 'done'
 
@@ -19,6 +20,8 @@ export default function PublicBooking() {
   const [info, setInfo] = useState({ name: '', email: '', phone: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [slots, setSlots] = useState<string[]>([])
+  const [loadingSlots, setLoadingSlots] = useState(false)
 
   useEffect(() => {
     if (!slug) return
@@ -32,6 +35,35 @@ export default function PublicBooking() {
   }, [slug])
 
   const color = company?.primary_color ?? '#7c3aed'
+
+  // Recalcula slots disponíveis quando muda a data, funcionário ou serviço
+  useEffect(() => {
+    if (!company || !sel.date || !sel.service) { setSlots([]); return }
+    setLoadingSlots(true)
+    const duration = sel.service.duration
+    const candidate = sel.employee
+      ? generateSlots(sel.employee.working_hours, sel.date, duration)
+      : unionSlots(employees.map(e => e.working_hours), sel.date, duration)
+    getBookedSlots(company.id, sel.date, sel.employee?.id).then(booked => {
+      let available: string[]
+      if (sel.employee) {
+        const taken = new Set(booked.map(b => b.start_time?.slice(0, 5)))
+        available = candidate.filter(s => !taken.has(s))
+      } else {
+        // sem preferência: slot indisponível só se TODOS os funcionários estiverem ocupados nessa hora
+        const activeCount = employees.filter(e => {
+          const day = new Date(sel.date! + 'T00:00:00').getDay()
+          return e.working_hours?.[String(day)]?.active
+        }).length || 1
+        const counts: Record<string, number> = {}
+        booked.forEach(b => { const t = b.start_time?.slice(0, 5); if (t) counts[t] = (counts[t] ?? 0) + 1 })
+        available = candidate.filter(s => (counts[s] ?? 0) < activeCount)
+      }
+      setSlots(available)
+      setSel(s => s.time && !available.includes(s.time) ? { ...s, time: undefined } : s)
+      setLoadingSlots(false)
+    })
+  }, [company, sel.date, sel.employee, sel.service, employees])
 
   async function handleBook() {
     if (!company || !sel.service || !sel.date || !sel.time || !info.name) return
@@ -47,8 +79,6 @@ export default function PublicBooking() {
     } catch { setError('Erro ao criar agendamento. Tente novamente.') }
     setLoading(false)
   }
-
-  const times = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30']
 
   if (!company) return <div className="min-h-screen flex items-center justify-center text-gray-400">A carregar…</div>
 
@@ -120,9 +150,11 @@ export default function PublicBooking() {
                     <Calendar size={16} className="text-gray-400" />
                     <input type="date" min={new Date().toISOString().split('T')[0]} value={sel.date ?? ''} onChange={e => setSel(s => ({ ...s, date: e.target.value }))} className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm" />
                   </div>
-                  {sel.date && (
+                  {sel.date && loadingSlots && <p className="text-sm text-gray-400 text-center py-4">A verificar disponibilidade…</p>}
+                  {sel.date && !loadingSlots && slots.length === 0 && <p className="text-sm text-gray-400 text-center py-4">Sem horários disponíveis neste dia. Escolha outra data.</p>}
+                  {sel.date && !loadingSlots && slots.length > 0 && (
                     <div className="grid grid-cols-4 gap-2">
-                      {times.map(t => (
+                      {slots.map(t => (
                         <button key={t} onClick={() => setSel(s => ({ ...s, time: t }))} className={`py-2 rounded-lg text-sm border transition-colors ${sel.time === t ? 'text-white' : 'border-gray-200 hover:bg-gray-50'}`} style={sel.time === t ? { backgroundColor: color, borderColor: color } : {}}>
                           {t}
                         </button>

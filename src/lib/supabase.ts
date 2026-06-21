@@ -235,6 +235,18 @@ export async function getPublicEmployees(companyId: string) {
   return supabase.from('agenda_employees').select('*').eq('company_id', companyId).eq('is_active', true)
 }
 
+// Devolve os start_time já ocupados numa data (opcionalmente por funcionário)
+export async function getBookedSlots(companyId: string, date: string, employeeId?: string) {
+  let q = supabase.from('agenda_appointments')
+    .select('start_time, employee_id')
+    .eq('company_id', companyId)
+    .eq('date', date)
+    .neq('status', 'cancelled')
+  if (employeeId) q = q.eq('employee_id', employeeId)
+  const { data } = await q
+  return data ?? []
+}
+
 // ─── Stripe ──────────────────────────────────────────────────────────────────
 
 export async function createStripeCheckout(priceId: string, companyId: string) {

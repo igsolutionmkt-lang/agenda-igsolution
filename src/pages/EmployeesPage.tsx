@@ -3,8 +3,9 @@ import { useAuth } from '../lib/auth'
 import { getEmployees, upsertEmployee, deleteEmployee } from '../lib/supabase'
 import { Plus, Trash2, Edit2, X } from 'lucide-react'
 import ImageUpload from '../components/ui/image-upload'
+import { WEEKDAYS, DEFAULT_WORKING_HOURS, type WorkingHours } from '../lib/slots'
 
-interface Employee { id?: string; name: string; email?: string; phone?: string; role?: string; is_active: boolean; avatar_url?: string }
+interface Employee { id?: string; name: string; email?: string; phone?: string; role?: string; is_active: boolean; avatar_url?: string; working_hours?: WorkingHours }
 
 export default function EmployeesPage() {
   const { companyId } = useAuth()
@@ -14,8 +15,16 @@ export default function EmployeesPage() {
 
   useEffect(() => { if (companyId) getEmployees(companyId).then(({ data }) => setEmployees(data ?? [])) }, [companyId])
 
-  function openCreate() { setForm({ name: '', role: '', is_active: true }); setModal(true) }
-  function openEdit(e: Employee) { setForm(e); setModal(true) }
+  function openCreate() { setForm({ name: '', role: '', is_active: true, working_hours: DEFAULT_WORKING_HOURS }); setModal(true) }
+  function openEdit(e: Employee) { setForm({ ...e, working_hours: e.working_hours ?? DEFAULT_WORKING_HOURS }); setModal(true) }
+
+  function setDay(day: string, patch: Partial<{ active: boolean; start: string; end: string }>) {
+    setForm(f => {
+      const wh: WorkingHours = { ...(f.working_hours ?? DEFAULT_WORKING_HOURS) }
+      wh[day] = { ...(wh[day] ?? { active: false }), ...patch }
+      return { ...f, working_hours: wh }
+    })
+  }
 
   async function handleSave(ev: React.FormEvent) {
     ev.preventDefault()
@@ -62,7 +71,7 @@ export default function EmployeesPage() {
       </div>
       {modal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h2 className="font-bold text-lg">{form.id ? 'Editar Membro' : 'Novo Membro'}</h2>
               <button onClick={() => setModal(false)}><X size={20} /></button>
@@ -77,6 +86,34 @@ export default function EmployeesPage() {
                 <input type="checkbox" checked={form.is_active} onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))} />
                 Ativo
               </label>
+
+              <div className="border-t border-gray-100 pt-3">
+                <p className="text-xs font-medium text-gray-500 mb-2">Horário de trabalho</p>
+                <div className="space-y-1.5">
+                  {WEEKDAYS.map((dayName, i) => {
+                    const wh = form.working_hours ?? DEFAULT_WORKING_HOURS
+                    const d = wh[String(i)] ?? { active: false }
+                    return (
+                      <div key={i} className="flex items-center gap-2">
+                        <label className="flex items-center gap-1.5 w-24 text-xs text-gray-600">
+                          <input type="checkbox" checked={!!d.active} onChange={e => setDay(String(i), { active: e.target.checked, start: d.start ?? '09:00', end: d.end ?? '18:00' })} />
+                          {dayName}
+                        </label>
+                        {d.active ? (
+                          <div className="flex items-center gap-1 flex-1">
+                            <input type="time" value={d.start ?? '09:00'} onChange={e => setDay(String(i), { start: e.target.value })} className="border border-gray-200 rounded px-2 py-1 text-xs flex-1" />
+                            <span className="text-gray-300 text-xs">–</span>
+                            <input type="time" value={d.end ?? '18:00'} onChange={e => setDay(String(i), { end: e.target.value })} className="border border-gray-200 rounded px-2 py-1 text-xs flex-1" />
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-300 flex-1">Folga</span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
               <button type="submit" className="w-full bg-violet-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-violet-700">Guardar</button>
             </form>
           </div>
