@@ -4,7 +4,7 @@ import { getCompany, updateCompany } from '../lib/supabase'
 import ImageUpload from '../components/ui/image-upload'
 import { ExternalLink, Copy, Check } from 'lucide-react'
 
-interface Company { id: string; name: string; slug: string; phone?: string; email?: string; address?: string; primary_color?: string; logo_url?: string; plan?: string }
+interface Company { id: string; name: string; slug: string; phone?: string; email?: string; address?: string; primary_color?: string; logo_url?: string; cover_url?: string; plan?: string }
 
 export default function SettingsPage() {
   const { companyId } = useAuth()
@@ -27,7 +27,7 @@ export default function SettingsPage() {
     e.preventDefault()
     if (!company || !companyId) return
     setSaving(true)
-    await updateCompany(companyId, { name: company.name, phone: company.phone, email: company.email, address: company.address, primary_color: company.primary_color, logo_url: company.logo_url })
+    await updateCompany(companyId, { name: company.name, phone: company.phone, email: company.email, address: company.address, primary_color: company.primary_color, logo_url: company.logo_url, cover_url: company.cover_url })
     setSaving(false); setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
@@ -83,6 +83,7 @@ export default function SettingsPage() {
             <span className="text-sm text-gray-600">{company.primary_color ?? '#7c3aed'}</span>
           </div>
           <ImageUpload label="Logótipo" value={company.logo_url} folder="logos" shape="square" onChange={url => setCompany(c => c ? { ...c, logo_url: url } : c)} />
+          <ImageUpload label="Foto de capa (banner do site de reservas)" value={company.cover_url} folder="covers" shape="wide" onChange={url => setCompany(c => c ? { ...c, cover_url: url } : c)} />
         </div>
 
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">

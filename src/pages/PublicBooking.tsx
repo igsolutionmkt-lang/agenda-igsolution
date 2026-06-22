@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { getCompanyBySlug, getPublicServices, getPublicEmployees, createAppointment, upsertClient, sendConfirmation, getBookedSlots } from '../lib/supabase'
 import { generateSlots, unionSlots, WEEKDAYS, type WorkingHours } from '../lib/slots'
-import { Calendar, Clock, User, Check, MapPin, Phone, Star, ChevronRight, Scissors, ArrowLeft } from 'lucide-react'
+import { Calendar, Clock, User, Check, MapPin, Phone, Star, ChevronRight, Scissors, ArrowLeft, MessageCircle, CalendarPlus } from 'lucide-react'
 
-interface Company { id: string; name: string; logo_url?: string; primary_color?: string; slug: string; phone?: string; email?: string; address?: string }
+interface Company { id: string; name: string; logo_url?: string; cover_url?: string; primary_color?: string; slug: string; phone?: string; email?: string; address?: string }
 interface Service { id: string; name: string; duration: number; price: number; image_url?: string; description?: string }
 interface Employee { id: string; name: string; avatar_url?: string; working_hours?: WorkingHours; specialties?: string }
 
@@ -100,11 +100,30 @@ export default function PublicBooking() {
 
   const initials = company.name.split(' ').slice(0, 2).map(w => w[0]).join('')
 
+  // WhatsApp: limpa o número e abre conversa com mensagem pré-preenchida
+  const waNumber = company.phone?.replace(/[^0-9]/g, '')
+  const waLink = waNumber ? `https://wa.me/${waNumber}?text=${encodeURIComponent(`Olá! Gostaria de fazer uma marcação na ${company.name}.`)}` : null
+
+  // Link "Adicionar ao Google Calendar" para o evento confirmado
+  function gcalLink() {
+    if (!sel.service || !sel.date || !sel.time) return '#'
+    const [h, m] = sel.time.split(':').map(Number)
+    const startMin = h * 60 + m
+    const endMin = startMin + sel.service.duration
+    const fmt = (mins: number) => `${sel.date!.replace(/-/g, '')}T${String(Math.floor(mins / 60)).padStart(2, '0')}${String(mins % 60).padStart(2, '0')}00`
+    const text = encodeURIComponent(`${sel.service.name} — ${company!.name}`)
+    const details = encodeURIComponent(`Marcação${sel.employee ? ' com ' + sel.employee.name : ''}. ${company!.phone ?? ''}`)
+    const loc = encodeURIComponent(company!.address ?? '')
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${fmt(startMin)}/${fmt(endMin)}&details=${details}&location=${loc}`
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* ─── HERO ─── */}
-      <header className="relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${color} 0%, ${hex2rgba(color, 0.82)} 100%)` }}>
-        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 20% 30%, #fff 0, transparent 40%), radial-gradient(circle at 80% 70%, #fff 0, transparent 35%)' }} />
+      <header className="relative overflow-hidden" style={company.cover_url
+        ? { backgroundImage: `linear-gradient(135deg, ${hex2rgba(color, 0.88)} 0%, ${hex2rgba(color, 0.7)} 100%), url(${company.cover_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+        : { background: `linear-gradient(135deg, ${color} 0%, ${hex2rgba(color, 0.82)} 100%)` }}>
+        {!company.cover_url && <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 20% 30%, #fff 0, transparent 40%), radial-gradient(circle at 80% 70%, #fff 0, transparent 35%)' }} />}
         <div className="relative max-w-5xl mx-auto px-4 pt-12 pb-14 text-center text-white">
           {company.logo_url
             ? <img src={company.logo_url} alt={company.name} className="h-20 w-20 mx-auto mb-4 object-cover rounded-2xl bg-white/10 ring-4 ring-white/20" />
@@ -204,7 +223,10 @@ export default function PublicBooking() {
                 <p><strong>{sel.service?.name}</strong> · {sel.date} às {sel.time}</p>
                 {sel.employee && <p className="text-gray-500">com {sel.employee.name}</p>}
               </div>
-              <div><button onClick={() => { setStep('service'); setSel({}); setInfo({ name: '', email: '', phone: '' }) }} className="mt-6 text-sm px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-50">Nova marcação</button></div>
+              <div className="mt-6 flex items-center justify-center gap-3 flex-wrap">
+                <a href={gcalLink()} target="_blank" rel="noopener noreferrer" className="text-sm px-4 py-2 rounded-lg font-medium text-white inline-flex items-center gap-1.5" style={{ backgroundColor: color }}><CalendarPlus size={15} /> Adicionar ao Google Calendar</a>
+                <button onClick={() => { setStep('service'); setSel({}); setInfo({ name: '', email: '', phone: '' }) }} className="text-sm px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-50">Nova marcação</button>
+              </div>
             </div>
           ) : (
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
@@ -299,6 +321,13 @@ export default function PublicBooking() {
         <span className="mx-2">·</span>
         powered by <span className="font-medium" style={{ color }}>Agenda IGSolution</span>
       </footer>
+
+      {waLink && (
+        <a href={waLink} target="_blank" rel="noopener noreferrer" aria-label="Falar no WhatsApp"
+          className="fixed bottom-5 right-5 z-50 flex items-center gap-2 bg-[#25D366] text-white pl-3.5 pr-4 py-3 rounded-full shadow-lg hover:shadow-xl transition-shadow font-medium text-sm">
+          <MessageCircle size={20} fill="currentColor" /> WhatsApp
+        </a>
+      )}
     </div>
   )
 }
