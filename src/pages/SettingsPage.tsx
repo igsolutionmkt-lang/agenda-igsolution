@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../lib/auth'
 import { getCompany, updateCompany } from '../lib/supabase'
 import ImageUpload from '../components/ui/image-upload'
+import { ExternalLink, Copy, Check } from 'lucide-react'
 
 interface Company { id: string; name: string; slug: string; phone?: string; email?: string; address?: string; primary_color?: string; logo_url?: string; plan?: string }
 
@@ -10,6 +11,15 @@ export default function SettingsPage() {
   const [company, setCompany] = useState<Company | null>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const bookingUrl = company ? `${window.location.origin}/book/${company.slug}` : ''
+
+  function copyLink() {
+    navigator.clipboard.writeText(bookingUrl)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   useEffect(() => { if (companyId) getCompany(companyId).then(({ data }) => setCompany(data)) }, [companyId])
 
@@ -35,10 +45,18 @@ export default function SettingsPage() {
             <input value={company.name} onChange={e => setCompany(c => c ? { ...c, name: e.target.value } : c)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
           </div>
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Slug (URL booking)</label>
+            <label className="text-xs text-gray-500 mb-1 block">Site de reservas</label>
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-400 bg-gray-50 px-2 py-2 rounded-l-lg border border-r-0 border-gray-200">/book/</span>
               <input value={company.slug} readOnly className="flex-1 border border-gray-200 rounded-r-lg px-3 py-2 text-sm bg-gray-50 text-gray-500" />
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <a href={bookingUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 bg-violet-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-violet-700">
+                <ExternalLink size={14} /> Visitar site de reservas
+              </a>
+              <button type="button" onClick={copyLink} className="flex items-center gap-1.5 border border-gray-200 px-3 py-2 rounded-lg text-sm hover:bg-gray-50">
+                {copied ? <><Check size={14} className="text-green-600" /> Copiado</> : <><Copy size={14} /> Copiar link</>}
+              </button>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
