@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Bot, Send } from 'lucide-react'
-import { askAI } from '../lib/supabase'
+import { askAI, getDashboardStats, getGrowthStats, getServices, getEmployees } from '../lib/supabase'
+import { useAuth } from '../lib/auth'
 
 interface Msg { role: 'user' | 'assistant'; content: string }
 
@@ -12,11 +13,38 @@ const suggestions = [
 ]
 
 export default function AIAssistant() {
+  const { companyId } = useAuth()
+  const [context, setContext] = useState<string>('')
   const [messages, setMessages] = useState<Msg[]>([
     { role: 'assistant', content: 'Olá! Sou o seu assistente de IA para o negócio. Posso ajudar com estratégias de crescimento, análise de clientes, sugestões de promoções e muito mais. O que pretende saber?' }
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!companyId) return
+    Promise.all([
+      getDashboardStats(companyId),
+      getGrowthStats(companyId),
+      getServices(companyId),
+      getEmployees(companyId),
+    ]).then(([stats, growth, { data: svcs }, { data: emps }]) => {
+      setContext(`
+Negócio: agenda local portuguesa
+Funcionários: ${(emps ?? []).map((e: { name: string }) => e.name).join(', ')}
+Serviços: ${(svcs ?? []).map((s: { name: string; price: number }) => `${s.name} (€${s.price})`).join(', ')}
+Marcações hoje: ${stats.todayAppointments}
+Marcações este mês: ${stats.monthAppointments}
+Receita este mês: €${stats.monthRevenue.toFixed(0)}
+Total clientes: ${stats.totalClients}
+Taxa de retorno: ${growth.returnRate}%
+Clientes activos (30d): ${growth.active}
+Clientes em risco: ${growth.atRisk.map((c: { name?: string }) => c.name).join(', ')}
+Clientes perdidos: ${growth.lost}
+Novos este mês: ${growth.newThisMonth}
+      `.trim())
+    })
+  }, [companyId])
 
   async function handleSend(text?: string) {
     const msg = text ?? input
@@ -25,7 +53,7 @@ export default function AIAssistant() {
     setMessages(prev => [...prev, { role: 'user', content: msg }])
     setInput('')
     setLoading(true)
-    const answer = await askAI(msg, history)
+    const answer = await askAI(msg, history, context)
     setMessages(prev => [...prev, { role: 'assistant', content: answer }])
     setLoading(false)
   }

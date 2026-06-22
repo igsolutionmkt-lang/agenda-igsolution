@@ -18,6 +18,9 @@ import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminCompanies from './pages/admin/AdminCompanies'
 import AdminUsers from './pages/admin/AdminUsers'
 import PublicBooking from './pages/PublicBooking'
+import QueuePage from './pages/QueuePage'
+import PublicQueue from './pages/PublicQueue'
+import MembershipsPage from './pages/MembershipsPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth()
@@ -38,6 +41,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/book/:slug" element={<PublicBooking />} />
+      <Route path="/queue/:slug" element={<PublicQueue />} />
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route element={<RequireAuth><RequireAdmin><AdminLayout /></RequireAdmin></RequireAuth>}>
         <Route path="/admin" element={<AdminDashboard />} />
@@ -47,6 +51,7 @@ function AppRoutes() {
       <Route element={<RequireAuth><Layout /></RequireAuth>}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/calendar" element={<CalendarPage />} />
+        <Route path="/queue" element={<QueuePage />} />
         <Route path="/clients" element={<ClientsPage />} />
         <Route path="/services" element={<ServicesPage />} />
         <Route path="/employees" element={<EmployeesPage />} />
@@ -54,6 +59,7 @@ function AppRoutes() {
         <Route path="/ai" element={<AIAssistant />} />
         <Route path="/automations" element={<AutomationsPage />} />
         <Route path="/loyalty" element={<LoyaltyPage />} />
+        <Route path="/memberships" element={<MembershipsPage />} />
         <Route path="/payments" element={<PaymentsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>

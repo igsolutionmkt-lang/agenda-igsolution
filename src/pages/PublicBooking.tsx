@@ -47,21 +47,40 @@ export default function PublicBooking() {
     if (!company || !sel.date || !sel.service) { setSlots([]); return }
     setLoadingSlots(true)
     const duration = sel.service.duration
+
     const candidate = sel.employee
       ? generateSlots(sel.employee.working_hours, sel.date, duration)
       : unionSlots(employees.map(e => e.working_hours), sel.date, duration)
+
     getBookedSlots(company.id, sel.date, sel.employee?.id).then(booked => {
+      const toMin = (t: string) => { const [h, m] = t.slice(0, 5).split(':').map(Number); return h * 60 + m }
+
       let available: string[]
       if (sel.employee) {
-        const taken = new Set(booked.map(b => b.start_time?.slice(0, 5)))
-        available = candidate.filter(s => !taken.has(s))
+        available = candidate.filter(slotStart => {
+          const sStart = toMin(slotStart)
+          const sEnd = sStart + duration
+          return !booked.some(b => {
+            const bStart = toMin(b.start_time)
+            const bEnd = b.end_time ? toMin(b.end_time) : bStart + 30
+            return bStart < sEnd && bEnd > sStart
+          })
+        })
       } else {
         const day = new Date(sel.date! + 'T00:00:00').getDay()
         const activeCount = employees.filter(e => e.working_hours?.[String(day)]?.active).length || 1
-        const counts: Record<string, number> = {}
-        booked.forEach(b => { const t = b.start_time?.slice(0, 5); if (t) counts[t] = (counts[t] ?? 0) + 1 })
-        available = candidate.filter(s => (counts[s] ?? 0) < activeCount)
+        available = candidate.filter(slotStart => {
+          const sStart = toMin(slotStart)
+          const sEnd = sStart + duration
+          const overlapping = booked.filter(b => {
+            const bStart = toMin(b.start_time)
+            const bEnd = b.end_time ? toMin(b.end_time) : bStart + 30
+            return bStart < sEnd && bEnd > sStart
+          }).length
+          return overlapping < activeCount
+        })
       }
+
       setSlots(available)
       setSel(s => s.time && !available.includes(s.time) ? { ...s, time: undefined } : s)
       setLoadingSlots(false)
@@ -114,7 +133,7 @@ export default function PublicBooking() {
     const text = encodeURIComponent(`${sel.service.name} — ${company!.name}`)
     const details = encodeURIComponent(`Marcação${sel.employee ? ' com ' + sel.employee.name : ''}. ${company!.phone ?? ''}`)
     const loc = encodeURIComponent(company!.address ?? '')
-    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${fmt(startMin)}/${fmt(endMin)}&details=${details}&location=${loc}`
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${fmt(startMin)}/${fmt(endMin)}&details=${details}&location=${loc}&ctz=Europe%2FLisbon`
   }
 
   return (

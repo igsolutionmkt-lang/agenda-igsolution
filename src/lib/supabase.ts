@@ -190,7 +190,7 @@ export async function getGrowthStats(companyId: string) {
   const d30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
   const d90 = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString()
 
-  const { data: all } = await supabase.from('agenda_clients').select('id,total_visits,last_visit,total_spent').eq('company_id', companyId)
+  const { data: all } = await supabase.from('agenda_clients').select('id,name,email,total_visits,last_visit,total_spent').eq('company_id', companyId)
   const clients = all ?? []
 
   const returning = clients.filter(c => (c.total_visits ?? 0) >= 2).length
@@ -238,7 +238,7 @@ export async function getPublicEmployees(companyId: string) {
 // Devolve os start_time já ocupados numa data (opcionalmente por funcionário)
 export async function getBookedSlots(companyId: string, date: string, employeeId?: string) {
   let q = supabase.from('agenda_appointments')
-    .select('start_time, employee_id')
+    .select('start_time, end_time, employee_id')
     .eq('company_id', companyId)
     .eq('date', date)
     .neq('status', 'cancelled')
@@ -272,4 +272,75 @@ export async function uploadImage(file: File, folder: string): Promise<string> {
   if (error) throw error
   const { data } = supabase.storage.from('agenda-media').getPublicUrl(path)
   return data.publicUrl
+}
+
+// ─── Queue (Fila Virtual Walk-in) ────────────────────────────────────────────
+
+export async function joinQueue(data: Record<string, unknown>) {
+  const { data: existing } = await supabase.from('agenda_queue')
+    .select('id, status, position')
+    .eq('company_id', data.company_id as string)
+    .eq('phone', data.phone as string)
+    .in('status', ['waiting', 'called'])
+    .maybeSingle()
+  if (existing) return { data: existing, error: null }
+  return supabase.from('agenda_queue').insert(data).select().single()
+}
+
+export async function getQueue(companyId: string) {
+  return supabase.from('agenda_queue')
+    .select('*')
+    .eq('company_id', companyId)
+    .in('status', ['waiting', 'called'])
+    .order('position', { ascending: true })
+}
+
+export async function callNext(companyId: string) {
+  const { data: next } = await supabase.from('agenda_queue')
+    .select('id')
+    .eq('company_id', companyId)
+    .eq('status', 'waiting')
+    .order('position', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+  if (!next) return null
+  await supabase.from('agenda_queue').update({ status: 'called', notified_at: new Date().toISOString() }).eq('id', next.id)
+  return next
+}
+
+export async function finishQueue(id: string, status: 'done' | 'left' | 'converted') {
+  return supabase.from('agenda_queue').update({ status, finished_at: new Date().toISOString() }).eq('id', id)
+}
+
+export async function getQueuePublic(companyId: string) {
+  const { data } = await supabase.from('agenda_queue')
+    .select('id, name, service_name, status, position, joined_at')
+    .eq('company_id', companyId)
+    .in('status', ['waiting', 'called'])
+    .order('position', { ascending: true })
+  return data ?? []
+}
+
+// ─── Memberships ──────────────────────────────────────────────────────────────
+
+export async function getMembershipPlans(companyId: string) {
+  return supabase.from('agenda_membership_plans')
+    .select('*')
+    .eq('company_id', companyId)
+    .order('price', { ascending: true })
+}
+
+export async function upsertMembershipPlan(data: Record<string, unknown>) {
+  return supabase.from('agenda_membership_plans').upsert(data).select().single()
+}
+
+export async function deleteMembershipPlan(id: string) {
+  return supabase.from('agenda_membership_plans').delete().eq('id', id)
+}
+
+export async function getClientMemberships(companyId: string) {
+  return supabase.from('agenda_client_memberships')
+    .select('*, agenda_clients(name, email, phone), agenda_membership_plans(name, price, services_per_month)')
+    .eq('company_id', companyId)
+    .order('created_at', { ascending: false })
 }
