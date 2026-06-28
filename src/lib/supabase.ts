@@ -11,6 +11,17 @@ export async function signIn(email: string, password: string) {
   return supabase.auth.signInWithPassword({ email, password })
 }
 
+// Registo self-serve: cria utilizador + empresa + funcionário/serviços por defeito.
+export async function signUpCompany(email: string, password: string, name: string, companyName: string) {
+  const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { name } } })
+  if (error) return { error }
+  // Sem sessão = confirmação de email pendente (não conseguimos criar a empresa ainda)
+  if (!data.session) return { error: null, needsConfirmation: true }
+  const { error: rpcError } = await supabase.rpc('agenda_register_company', { p_company_name: companyName })
+  if (rpcError) return { error: rpcError }
+  return { error: null, needsConfirmation: false }
+}
+
 export async function signOut() {
   return supabase.auth.signOut()
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { signIn } from '../lib/supabase'
+import { signIn, signUpCompany } from '../lib/supabase'
 
 type Mode = 'select' | 'admin' | 'company' | 'register'
 
@@ -12,11 +12,23 @@ export default function LoginPage() {
   const [name, setName] = useState('')
   const [company, setCompany] = useState('')
   const [error, setError] = useState('')
+  const [info, setInfo] = useState('')
   const [loading, setLoading] = useState(false)
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
-    setLoading(true); setError('')
+    setLoading(true); setError(''); setInfo('')
+
+    if (mode === 'register') {
+      if (!name.trim() || !company.trim()) { setLoading(false); setError('Preencha o nome e o nome da empresa.'); return }
+      const { error: err, needsConfirmation } = await signUpCompany(email, password, name.trim(), company.trim())
+      setLoading(false)
+      if (err) { setError(err.message); return }
+      if (needsConfirmation) { setInfo('Conta criada! Confirme o seu email para entrar.'); return }
+      navigate('/dashboard')
+      return
+    }
+
     const { data, error: err } = await signIn(email, password)
     setLoading(false)
     if (err) { setError(err.message); return }
@@ -66,6 +78,7 @@ export default function LoginPage() {
           <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" required className="w-full border border-gray-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
           <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" required className="w-full border border-gray-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
           {error && <p className="text-red-500 text-sm">{error}</p>}
+          {info && <p className="text-green-600 text-sm">{info}</p>}
           <button type="submit" disabled={loading} className="w-full bg-violet-600 hover:bg-violet-700 text-white py-3 rounded-lg font-medium transition-colors disabled:opacity-50">
             {loading ? 'A entrar…' : mode === 'register' ? 'Criar Conta' : 'Entrar'}
           </button>
