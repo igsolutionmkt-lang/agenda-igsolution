@@ -21,6 +21,7 @@ import PublicBooking from './pages/PublicBooking'
 import QueuePage from './pages/QueuePage'
 import PublicQueue from './pages/PublicQueue'
 import MembershipsPage from './pages/MembershipsPage'
+import OnboardingPage from './pages/OnboardingPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth()
@@ -36,19 +37,28 @@ function RequireAdmin({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+// Empresas que ainda não fizeram a configuração inicial são enviadas para o onboarding
+function RequireOnboarded({ children }: { children: React.ReactNode }) {
+  const { needsOnboarding, role, loading } = useAuth()
+  if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-400">A carregar…</div>
+  if (needsOnboarding && role !== 'super_admin') return <Navigate to="/onboarding" replace />
+  return <>{children}</>
+}
+
 function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/book/:slug" element={<PublicBooking />} />
       <Route path="/queue/:slug" element={<PublicQueue />} />
+      <Route path="/onboarding" element={<RequireAuth><OnboardingPage /></RequireAuth>} />
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route element={<RequireAuth><RequireAdmin><AdminLayout /></RequireAdmin></RequireAuth>}>
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin/companies" element={<AdminCompanies />} />
         <Route path="/admin/users" element={<AdminUsers />} />
       </Route>
-      <Route element={<RequireAuth><Layout /></RequireAuth>}>
+      <Route element={<RequireAuth><RequireOnboarded><Layout /></RequireOnboarded></RequireAuth>}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/queue" element={<QueuePage />} />

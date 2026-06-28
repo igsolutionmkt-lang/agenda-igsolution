@@ -41,6 +41,19 @@ export async function getCompany(companyId: string) {
   return supabase.from('agenda_companies').select('*').eq('id', companyId).single()
 }
 
+// Conclui o onboarding via RPC SECURITY DEFINER (atómico: serviços + horário + marca configurada)
+export async function completeOnboarding(_companyId: string, payload: {
+  category?: string
+  services: { name: string; duration: number; price: number }[]
+  workingHours: Record<string, { active: boolean; start?: string; end?: string }>
+}) {
+  return supabase.rpc('agenda_complete_onboarding', {
+    p_category: payload.category ?? null,
+    p_services: payload.services,
+    p_working_hours: payload.workingHours,
+  })
+}
+
 export async function updateCompany(companyId: string, updates: Record<string, unknown>) {
   return supabase.from('agenda_companies').update(updates).eq('id', companyId)
 }

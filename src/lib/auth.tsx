@@ -8,21 +8,31 @@ interface AuthCtx {
   role: string | null
   loading: boolean
   companyId: string | null
+  needsOnboarding: boolean
+  refreshCompany: () => Promise<void>
 }
 
-const Ctx = createContext<AuthCtx>({ session: null, user: null, role: null, loading: true, companyId: null })
+const Ctx = createContext<AuthCtx>({ session: null, user: null, role: null, loading: true, companyId: null, needsOnboarding: false, refreshCompany: async () => {} })
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const [companyId, setCompanyId] = useState<string | null>(null)
+  const [needsOnboarding, setNeedsOnboarding] = useState(false)
+
+  async function loadCompany() {
+    const { data: cid } = await supabase.rpc('agenda_get_my_company_id')
+    setCompanyId(cid ?? null)
+    if (cid) {
+      const { data: company } = await supabase.from('agenda_companies').select('onboarded').eq('id', cid).single()
+      setNeedsOnboarding(company?.onboarded === false)
+    } else {
+      setNeedsOnboarding(false)
+    }
+    setLoading(false)
+  }
 
   useEffect(() => {
-    async function loadCompany() {
-      const { data } = await supabase.rpc('agenda_get_my_company_id')
-      setCompanyId(data ?? null)
-      setLoading(false)
-    }
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
       if (data.session) loadCompany()
@@ -31,14 +41,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
       setSession(s)
       if (s) loadCompany()
-      else { setCompanyId(null); setLoading(false) }
+      else { setCompanyId(null); setNeedsOnboarding(false); setLoading(false) }
     })
     return () => subscription.unsubscribe()
   }, [])
 
   const role = (session?.user?.app_metadata?.role as string) ?? null
 
-  return <Ctx.Provider value={{ session, user: session?.user ?? null, role, loading, companyId }}>{children}</Ctx.Provider>
+  return <Ctx.Provider value={{ session, user: session?.user ?? null, role, loading, companyId, needsOnboarding, refreshCompany: loadCompany }}>{children}</Ctx.Provider>
 }
 
 export const useAuth = () => useContext(Ctx)

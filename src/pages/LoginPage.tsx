@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { signIn, signUpCompany } from '../lib/supabase'
+import { useAuth } from '../lib/auth'
 
 type Mode = 'select' | 'admin' | 'company' | 'register'
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const { refreshCompany } = useAuth()
   const [mode, setMode] = useState<Mode>('select')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -25,7 +27,8 @@ export default function LoginPage() {
       setLoading(false)
       if (err) { setError(err.message); return }
       if (needsConfirmation) { setInfo('Conta criada! Confirme o seu email para entrar.'); return }
-      navigate('/dashboard')
+      await refreshCompany()
+      navigate('/onboarding')
       return
     }
 
