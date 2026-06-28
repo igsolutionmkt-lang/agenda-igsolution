@@ -189,9 +189,9 @@ export default function PublicBooking() {
             ? <img src={company.logo_url} alt={company.name} className="h-20 w-20 mx-auto mb-4 object-cover rounded-2xl bg-white/10 ring-4 ring-white/20" />
             : <div className="h-20 w-20 mx-auto mb-4 rounded-2xl bg-white/15 ring-4 ring-white/20 flex items-center justify-center text-3xl font-bold">{initials}</div>}
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">{company.name}</h1>
-          <div className="flex items-center justify-center gap-1 mt-2 text-white/90">
-            {[...Array(5)].map((_, i) => <Star key={i} size={16} fill="currentColor" className="text-amber-300" />)}
-            <span className="text-sm ml-1.5 text-white/80">Reserva online · resposta imediata</span>
+          <div className="flex items-center justify-center gap-1.5 mt-2 text-white/85 text-sm">
+            <Star size={15} className="text-amber-300" />
+            <span>Reserva online 24/7 · confirmação imediata</span>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 mt-4 text-sm text-white/85">
             {company.address && <span className="flex items-center gap-1.5"><MapPin size={14} /> {company.address}</span>}
