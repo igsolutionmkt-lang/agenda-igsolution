@@ -277,13 +277,16 @@ export async function uploadImage(file: File, folder: string): Promise<string> {
 // ─── Queue (Fila Virtual Walk-in) ────────────────────────────────────────────
 
 export async function joinQueue(data: Record<string, unknown>) {
-  const { data: existing } = await supabase.from('agenda_queue')
-    .select('id, status, position')
-    .eq('company_id', data.company_id as string)
-    .eq('phone', data.phone as string)
-    .in('status', ['waiting', 'called'])
-    .maybeSingle()
-  if (existing) return { data: existing, error: null }
+  // Evita duplicados só quando há telefone (.eq com null seria uma query inválida)
+  if (data.phone) {
+    const { data: existing } = await supabase.from('agenda_queue')
+      .select('id, status, position')
+      .eq('company_id', data.company_id as string)
+      .eq('phone', data.phone as string)
+      .in('status', ['waiting', 'called'])
+      .maybeSingle()
+    if (existing) return { data: existing, error: null }
+  }
   return supabase.from('agenda_queue').insert(data).select().single()
 }
 

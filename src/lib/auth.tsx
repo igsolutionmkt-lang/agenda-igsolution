@@ -18,6 +18,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [companyId, setCompanyId] = useState<string | null>(null)
 
   useEffect(() => {
+    async function loadCompany() {
+      const { data } = await supabase.rpc('agenda_get_my_company_id')
+      setCompanyId(data ?? null)
+      setLoading(false)
+    }
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
       if (data.session) loadCompany()
@@ -30,12 +35,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
     return () => subscription.unsubscribe()
   }, [])
-
-  async function loadCompany() {
-    const { data } = await supabase.rpc('agenda_get_my_company_id')
-    setCompanyId(data ?? null)
-    setLoading(false)
-  }
 
   const role = (session?.user?.app_metadata?.role as string) ?? null
 
