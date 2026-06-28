@@ -28,6 +28,7 @@ export default function PublicBooking() {
   const [error, setError] = useState('')
   const [slots, setSlots] = useState<string[]>([])
   const [loadingSlots, setLoadingSlots] = useState(false)
+  const [nextSlot, setNextSlot] = useState<{ date: string; time: string } | null>(null)
   const bookRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -42,6 +43,46 @@ export default function PublicBooking() {
   }, [slug])
 
   const color = company?.primary_color ?? '#7c3aed'
+
+  // Procura a próxima vaga disponível (varre até 14 dias) — gatilho de conversão no hero
+  useEffect(() => {
+    if (!company || employees.length === 0 || services.length === 0) return
+    let cancelled = false
+    const duration = Math.min(...services.map(s => s.duration))
+    const toMin = (t: string) => { const [h, m] = t.slice(0, 5).split(':').map(Number); return h * 60 + m }
+    ;(async () => {
+      const today = new Date()
+      for (let d = 0; d < 14 && !cancelled; d++) {
+        const day = new Date(today.getTime() + d * 86400000)
+        const dateStr = day.toISOString().split('T')[0]
+        const candidate = unionSlots(employees.map(e => e.working_hours), dateStr, duration)
+        if (candidate.length === 0) continue
+        const booked = await getBookedSlots(company.id, dateStr)
+        const dow = day.getDay()
+        const activeCount = employees.filter(e => e.working_hours?.[String(dow)]?.active).length || 1
+        const nowMin = today.getHours() * 60 + today.getMinutes()
+        const free = candidate.filter(slotStart => {
+          if (d === 0 && toMin(slotStart) <= nowMin) return false
+          const sStart = toMin(slotStart); const sEnd = sStart + duration
+          const overlapping = booked.filter(b => {
+            const bStart = toMin(b.start_time); const bEnd = b.end_time ? toMin(b.end_time) : bStart + 30
+            return bStart < sEnd && bEnd > sStart
+          }).length
+          return overlapping < activeCount
+        })
+        if (free.length > 0) { if (!cancelled) setNextSlot({ date: dateStr, time: free[0] }); return }
+      }
+    })()
+    return () => { cancelled = true }
+  }, [company, employees, services])
+
+  function nextSlotLabel(date: string, time: string) {
+    const todayStr = new Date().toISOString().split('T')[0]
+    const tomorrowStr = new Date(Date.now() + 86400000).toISOString().split('T')[0]
+    if (date === todayStr) return `hoje às ${time}`
+    if (date === tomorrowStr) return `amanhã às ${time}`
+    return `${new Date(date + 'T00:00:00').toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' })} às ${time}`
+  }
 
   useEffect(() => {
     if (!company || !sel.date || !sel.service) { setSlots([]); return }
@@ -156,9 +197,17 @@ export default function PublicBooking() {
             {company.address && <span className="flex items-center gap-1.5"><MapPin size={14} /> {company.address}</span>}
             {company.phone && <span className="flex items-center gap-1.5"><Phone size={14} /> {company.phone}</span>}
           </div>
-          <button onClick={scrollToBook} className="mt-7 inline-flex items-center gap-2 bg-white px-7 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-shadow" style={{ color }}>
-            <Calendar size={18} /> Marcar agora
-          </button>
+          {nextSlot && (
+            <div className="mt-5 inline-flex items-center gap-2 bg-white/15 backdrop-blur px-4 py-1.5 rounded-full text-sm text-white">
+              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+              Próxima vaga: <strong>{nextSlotLabel(nextSlot.date, nextSlot.time)}</strong>
+            </div>
+          )}
+          <div className="mt-5">
+            <button onClick={() => { if (nextSlot) { setSel(s => ({ ...s, date: nextSlot.date, time: nextSlot.time })) } scrollToBook() }} className="inline-flex items-center gap-2 bg-white px-7 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-shadow" style={{ color }}>
+              <Calendar size={18} /> Marcar agora
+            </button>
+          </div>
         </div>
       </header>
 
